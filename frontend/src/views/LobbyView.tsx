@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { useSocket } from '../hooks/useSocket';
-import { useGameStore, Phase } from '../store/gameStore';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { useSocket } from "../hooks/useSocket";
+import { useGameStore, Phase } from "../store/gameStore";
 
 export default function LobbyView() {
   const navigate = useNavigate();
@@ -9,34 +10,35 @@ export default function LobbyView() {
   const { createRoom, joinRoom, kickPlayer, startGame } = useSocket();
   const { roomState, playerName, setPlayerName, socketId } = useGameStore();
 
-  const [joinCode, setJoinCode] = useState('');
-  const [error, setError] = useState('');
+  const [joinCode, setJoinCode] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const code = searchParams.get('join');
+    const code = searchParams.get("join");
     if (code && !roomState) {
       setJoinCode(code.toUpperCase());
     }
   }, [searchParams, roomState]);
 
-  const isHost = roomState?.players.find(p => p.socketId === socketId)?.isHost ?? false;
+  const isHost =
+    roomState?.players.find((p) => p.socketId === socketId)?.isHost ?? false;
   const canStart = (roomState?.players.length ?? 0) >= 3;
 
   useEffect(() => {
     if (roomState && roomState.phase !== Phase.LOBBY) {
-      navigate('/game');
+      navigate("/game");
     }
   }, [roomState, navigate]);
 
   const handleCreate = async () => {
     if (!playerName.trim()) {
-      setError('Enter your name');
+      setError("Enter your name");
       return;
     }
     setIsLoading(true);
-    setError('');
+    setError("");
     const result = await createRoom(playerName.trim());
     setIsLoading(false);
     if (result.error) {
@@ -46,15 +48,15 @@ export default function LobbyView() {
 
   const handleJoin = async () => {
     if (!playerName.trim()) {
-      setError('Enter your name');
+      setError("Enter your name");
       return;
     }
     if (!joinCode.trim()) {
-      setError('Enter a room code');
+      setError("Enter a room code");
       return;
     }
     setIsLoading(true);
-    setError('');
+    setError("");
     const result = await joinRoom(joinCode.trim(), playerName.trim());
     setIsLoading(false);
     if (result.error) {
@@ -92,7 +94,9 @@ export default function LobbyView() {
 
           <div className="bg-court-surface border border-court-border rounded-2xl p-8 space-y-6">
             <div>
-              <label className="block text-sm text-court-muted mb-2">Your Name</label>
+              <label className="block text-sm text-court-muted mb-2">
+                Your Name
+              </label>
               <input
                 type="text"
                 value={playerName}
@@ -108,7 +112,7 @@ export default function LobbyView() {
               disabled={isLoading}
               className="w-full bg-court-gold hover:bg-court-accent text-court-bg font-bold py-3 rounded-lg transition disabled:opacity-50"
             >
-              {isLoading ? 'Creating...' : 'Create New Game'}
+              {isLoading ? "Creating..." : "Create New Game"}
             </button>
 
             <div className="flex items-center gap-4">
@@ -165,7 +169,7 @@ export default function LobbyView() {
             }}
             className="text-xs bg-court-panel hover:bg-court-border text-court-text px-3 py-1.5 rounded-lg border border-court-border transition"
           >
-            {copied ? 'Copied!' : 'Copy Link'}
+            {copied ? "Copied!" : "Copy Link"}
           </button>
         </div>
       </div>
@@ -182,7 +186,9 @@ export default function LobbyView() {
               className="flex items-center justify-between bg-court-bg rounded-lg px-4 py-3 border border-court-border/50"
             >
               <div className="flex items-center gap-3">
-                <span className={`w-2 h-2 rounded-full ${player.connected ? 'bg-green-400' : 'bg-red-400'}`} />
+                <span
+                  className={`w-2 h-2 rounded-full ${player.connected ? "bg-green-400" : "bg-red-400"}`}
+                />
                 <span className="text-court-text">
                   {player.name}
                   {player.isHost && (
@@ -217,7 +223,7 @@ export default function LobbyView() {
             disabled={!canStart || isLoading}
             className="bg-court-gold hover:bg-court-accent text-court-bg font-bold px-12 py-4 rounded-xl text-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Starting...' : 'Start Trial'}
+            {isLoading ? "Starting..." : "Start Trial"}
           </button>
           {!canStart && (
             <p className="text-court-muted text-sm mt-2">

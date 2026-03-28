@@ -55,10 +55,22 @@ cd frontend && npm run dev    # http://localhost:5173
 | `PORT` | `3001` | Backend port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Frontend origin for CORS |
 
+### Docker
+
+```bash
+cp env.docker.example .env    # then set GEMINI_API_KEY
+docker compose up --build      # http://localhost:3001
+```
+
+Single container -- the Node.js backend serves the compiled React frontend, Socket.IO, and the Gemini Live API all on port 3001.
+
 ## Project Structure
 
 ```
 courtroom-chaos/
+├── Dockerfile                    # Multi-stage: frontend build + backend build + production
+├── docker-compose.yml
+├── env.docker.example
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts              # Express + Socket.IO server
