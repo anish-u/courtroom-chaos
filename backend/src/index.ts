@@ -42,14 +42,63 @@ const roomManager = new RoomManager(
 const geminiProxies: Map<string, GeminiLiveProxy> = new Map();
 const transcripts: Map<string, TranscriptBuilder> = new Map();
 
-/** Remove Live API control tokens from text shown in the UI transcript. */
-function scrubJudgeTranscriptForDisplay(raw: string): string {
-  return raw
+function isScoreTableRow(item: unknown): item is {
+  playerId: string;
+  creativity: number;
+  persuasiveness: number;
+  absurdity: number;
+} {
+  if (!item || typeof item !== 'object') return false;
+  const o = item as Record<string, unknown>;
+  return (
+    typeof o.playerId === 'string' &&
+    typeof o.creativity === 'number' &&
+    typeof o.persuasiveness === 'number' &&
+    typeof o.absurdity === 'number'
+  );
+}
+
+/** Trailing raw `[{"playerId":...}]` when the model omits ###SCORE_*### markers. */
+function stripTrailingScoreJsonArray(s: string): string {
+  const t = s.trimEnd();
+  if (!t.endsWith(']')) return s;
+
+  let depth = 0;
+  let start = -1;
+  for (let i = t.length - 1; i >= 0; i--) {
+    const c = t[i];
+    if (c === ']') depth++;
+    else if (c === '[') {
+      depth--;
+      if (depth === 0) {
+        start = i;
+        break;
+      }
+    }
+  }
+  if (start === -1 || t[start] !== '[') return s;
+
+  const jsonSlice = t.slice(start);
+  try {
+    const parsed = JSON.parse(jsonSlice) as unknown;
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(isScoreTableRow)) {
+      return t.slice(0, start).replace(/\s+$/, '');
+    }
+  } catch {
+    return s;
+  }
+  return s;
+}
+
+/** Full judge line for UI: score blocks, trailing score JSON, CALL/MOOD tokens. */
+function stripJudgeTranscriptDisplay(raw: string): string {
+  let s = raw.replace(/###SCORE_START###[\s\S]*?###SCORE_END###/g, '').trim();
+  s = stripTrailingScoreJsonArray(s);
+  return s
     .replace(/\bCALL\s*:\s*(PROSECUTOR|DEFENSE|DEFENDANT|WITNESS_1|WITNESS_2|JURY_FOREMAN)\b/gi, '')
     .replace(/\bCALL\s*:\s*[A-Za-z][A-Za-z0-9_]*\b/g, '')
     .replace(/\bMOOD\s*:\s*(NEUTRAL|IMPRESSED|SCEPTICAL|OUTRAGED|AMUSED)\b/gi, '')
     .replace(/\bMOOD\s*:\s*[A-Za-z]+\b/gi, '')
-    .replace(/###SCORE_START###|###SCORE_END###/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -242,12 +291,13 @@ io.on('connection', (socket) => {
           io.to(room.code).emit('judge:audio', { audio: base64Audio });
         },
         onText: (text) => {
-          const clean = scrubJudgeTranscriptForDisplay(text);
-          if (clean) {
-            transcript.appendOrMerge('Judge Peter Griffin', 'JUDGE', clean);
-            room.transcript = transcript.getAll();
-            broadcastRoomState(room);
+          if (!text?.trim()) return;
+          const entry = transcript.appendOrMerge('Judge Peter Griffin', 'JUDGE', text);
+          if (entry.role === 'JUDGE') {
+            entry.text = stripJudgeTranscriptDisplay(entry.text);
           }
+          room.transcript = transcript.getAll();
+          broadcastRoomState(room);
         },
         onMoodChange: (mood) => {
           room.judgeMood = mood;
