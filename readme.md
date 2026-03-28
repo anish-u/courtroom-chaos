@@ -52,13 +52,15 @@ cd frontend && npm run dev    # http://localhost:5173
 | `GEMINI_API_KEY` | -- | Google AI Studio API key (required) |
 | `GEMINI_MODEL` | `gemini-3.1-flash-live-preview` | Gemini Live model name |
 | `GEMINI_VOICE` | `Fenrir` | Voice preset (Excitable) |
+| `GEMINI_CASE_MODEL` | `gemini-2.0-flash` | Text model for AI-generated case blurbs |
+| `GEMINI_IMAGE_MODEL` | `imagen-3.0-generate-002` | Case cartoon image (optional; needs Imagen API access) |
 | `PORT` | `3001` | Backend port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Frontend origin for CORS |
 
 ### Docker
 
 ```bash
-cp env.docker.example .env    # then set GEMINI_API_KEY
+cp env.example .env             # then set GEMINI_API_KEY
 docker compose up --build      # http://localhost:3001
 ```
 
@@ -70,7 +72,7 @@ Single container -- the Node.js backend serves the compiled React frontend, Sock
 courtroom-chaos/
 ├── Dockerfile                    # Multi-stage: frontend build + backend build + production
 ├── docker-compose.yml
-├── env.docker.example
+├── env.example
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts              # Express + Socket.IO server
@@ -81,7 +83,8 @@ courtroom-chaos/
 │   │   │   └── RoomManager.ts    # Room lifecycle and reconnection
 │   │   ├── game/
 │   │   │   ├── GameStateManager.ts # Phase and speaker management
-│   │   │   ├── CaseGenerator.ts  # Random absurd case pool
+│   │   │   ├── CaseGenerator.ts  # Simple silly cases + optional AI
+│   │   │   ├── CaseIllustration.ts # Optional Imagen case cartoon
 │   │   │   └── Scorer.ts         # Score parsing and computation
 │   │   └── transcript/
 │   │       └── TranscriptBuilder.ts

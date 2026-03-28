@@ -62,6 +62,8 @@ export interface PlayerScore {
   foremanModifier?: number;
 }
 
+export type CaseIllustrationStatus = 'pending' | 'ready' | 'error' | null;
+
 export interface RoomState {
   code: string;
   players: Player[];
@@ -74,6 +76,9 @@ export interface RoomState {
   winner: string | null;
   verdictRationale: string | null;
   phaseTimeRemaining: number | null;
+  caseIllustration: string | null;
+  caseIllustrationStatus: CaseIllustrationStatus;
+  caseIllustrationError: string | null;
 }
 
 interface GameStore {

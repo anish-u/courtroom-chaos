@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { RoomManager } from './rooms/RoomManager';
 import { GameStateManager } from './game/GameStateManager';
 import { generateCase } from './game/CaseGenerator';
+import { generateCaseIllustration } from './game/CaseIllustration';
 import { GeminiLiveProxy, GeminiProxyCallbacks } from './gemini/GeminiLiveProxy';
 import { TranscriptBuilder } from './transcript/TranscriptBuilder';
 import { parseScores, computeScores, applyForemanOverride } from './game/Scorer';
@@ -41,6 +42,36 @@ const roomManager = new RoomManager(
 const geminiProxies: Map<string, GeminiLiveProxy> = new Map();
 const transcripts: Map<string, TranscriptBuilder> = new Map();
 
+/** Remove Live API control tokens from text shown in the UI transcript. */
+function scrubJudgeTranscriptForDisplay(raw: string): string {
+  return raw
+    .replace(/\bCALL\s*:\s*(PROSECUTOR|DEFENSE|DEFENDANT|WITNESS_1|WITNESS_2|JURY_FOREMAN)\b/gi, '')
+    .replace(/\bCALL\s*:\s*[A-Za-z][A-Za-z0-9_]*\b/g, '')
+    .replace(/\bMOOD\s*:\s*(NEUTRAL|IMPRESSED|SCEPTICAL|OUTRAGED|AMUSED)\b/gi, '')
+    .replace(/\bMOOD\s*:\s*[A-Za-z]+\b/gi, '')
+    .replace(/###SCORE_START###|###SCORE_END###/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function extractVerdictRationale(fullText: string): string {
+  const startIdx = fullText.indexOf('###SCORE_START###');
+  let prose = startIdx === -1 ? fullText : fullText.slice(0, startIdx);
+  prose = prose
+    .replace(/MOOD:\w+/g, ' ')
+    .replace(/CALL:[A-Z_0-9]+/g, ' ')
+    .replace(/###SCORE_END###/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!prose) return '';
+  const sentences = prose
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 6);
+  const tail = sentences.slice(-8).join(' ');
+  return (tail || prose).slice(0, 2800);
+}
+
 function broadcastRoomState(room: RoomState): void {
   io.to(room.code).emit('room:state', sanitizeRoom(room));
 }
@@ -64,6 +95,9 @@ function sanitizeRoom(room: RoomState) {
     winner: room.winner,
     verdictRationale: room.verdictRationale,
     phaseTimeRemaining: room.phaseTimeRemaining,
+    caseIllustration: room.caseIllustration,
+    caseIllustrationStatus: room.caseIllustrationStatus,
+    caseIllustrationError: room.caseIllustrationError,
   };
 }
 
@@ -166,22 +200,54 @@ io.on('connection', (socket) => {
     }
     room.caseDetails = caseDetails;
 
+    room.caseIllustrationStatus = 'pending';
+    room.caseIllustration = null;
+    room.caseIllustrationError = null;
+
+    const roomCodeForArt = room.code;
+    const caseDetailsForArt = { ...caseDetails };
+    void (async () => {
+      const key = process.env.GEMINI_API_KEY;
+      const imgModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+      const r = roomManager.getRoom(roomCodeForArt);
+      if (!r) return;
+      if (!key || key === 'your_api_key_here') {
+        r.caseIllustrationStatus = 'error';
+        r.caseIllustrationError = 'Image generation disabled (set GEMINI_API_KEY)';
+        broadcastRoomState(r);
+        return;
+      }
+      const out = await generateCaseIllustration(key, imgModel, caseDetailsForArt);
+      const r2 = roomManager.getRoom(roomCodeForArt);
+      if (!r2) return;
+      if ('dataUrl' in out) {
+        r2.caseIllustration = out.dataUrl;
+        r2.caseIllustrationStatus = 'ready';
+        r2.caseIllustrationError = null;
+      } else {
+        r2.caseIllustrationStatus = 'error';
+        r2.caseIllustrationError = out.error;
+        r2.caseIllustration = null;
+      }
+      broadcastRoomState(r2);
+    })();
+
     const transcript = new TranscriptBuilder();
     transcripts.set(room.code, transcript);
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && apiKey !== 'your_api_key_here') {
-      let verdictText = '';
-
       const callbacks: GeminiProxyCallbacks = {
         onAudio: (base64Audio) => {
           io.to(room.code).emit('judge:audio', { audio: base64Audio });
         },
         onText: (text) => {
-          transcript.append('Judge Peter Griffin', 'JUDGE', text);
-          room.transcript = transcript.getAll();
-          verdictText += text;
-          broadcastRoomState(room);
+          const clean = scrubJudgeTranscriptForDisplay(text);
+          if (clean) {
+            transcript.appendOrMerge('Judge Peter Griffin', 'JUDGE', clean);
+            room.transcript = transcript.getAll();
+            broadcastRoomState(room);
+          }
         },
         onMoodChange: (mood) => {
           room.judgeMood = mood;
@@ -189,17 +255,8 @@ io.on('connection', (socket) => {
           broadcastRoomState(room);
         },
         onScoreBlock: (text) => {
-          if (verdictText) {
-            const cleaned = verdictText
-              .replace(/MOOD:\w+/g, '')
-              .replace(/CALL:\w+/g, '')
-              .replace(/###SCORE_START###[\s\S]*###SCORE_END###/g, '')
-              .trim();
-            const sentences = cleaned.split(/[.!?]+/).filter(s => s.trim().length > 10);
-            room.verdictRationale = sentences.length > 0
-              ? sentences[sentences.length - 1].trim() + '.'
-              : cleaned.slice(0, 200);
-          }
+          const rationale = extractVerdictRationale(text);
+          room.verdictRationale = rationale || null;
 
           const rawScores = parseScores(text);
           room.scores = computeScores(room, rawScores);
@@ -242,6 +299,18 @@ io.on('connection', (socket) => {
         onError: (error) => {
           console.error('[Gemini] Error:', error);
           io.to(room.code).emit('judge:unavailable', { message: 'Judge is considering their ruling...' });
+        },
+        onPlayerTranscript: (t) => {
+          const code = room.code;
+          const r = roomManager.getRoom(code);
+          const tb = transcripts.get(code);
+          if (!r || !tb || !t?.trim()) return;
+          if (!r.activeSpeaker) return;
+          const p = r.players.find(pl => pl.socketId === r.activeSpeaker);
+          if (!p?.role) return;
+          tb.appendOrMerge(p.name, p.role, t.trim());
+          r.transcript = tb.getAll();
+          broadcastRoomState(r);
         },
       };
 

@@ -53,23 +53,31 @@ export default function VerdictView() {
   const medalColors = ['text-yellow-400', 'text-gray-300', 'text-amber-600'];
 
   return (
-    <div className="min-h-screen p-4 max-w-3xl mx-auto">
+    <div className="min-h-screen p-4 max-w-3xl mx-auto pb-12">
       <div className="text-center mb-8 pt-8">
-        <div className="text-6xl mb-4">⚖️</div>
-        <h1 className="text-4xl font-serif font-bold text-court-gold mb-2">The Verdict Is In</h1>
+        <div className="text-6xl mb-4 drop-shadow-[3px_3px_0_#111827]">⚖️</div>
+        <h1 className="text-4xl font-black text-court-gold mb-2 drop-shadow-[3px_3px_0_#111827]">The Verdict Is In</h1>
         {roomState.winner && (
-          <p className="text-court-text text-xl">
-            <span className="text-court-gold font-bold">{roomState.winner}</span> wins the case!
+          <p className="text-white text-xl font-black">
+            <span className="text-court-gold">{roomState.winner}</span> wins the case!
           </p>
-        )}
-        {roomState.verdictRationale && (
-          <p className="text-court-muted italic mt-2">"{roomState.verdictRationale}"</p>
         )}
       </div>
 
+      {roomState.verdictRationale && (
+        <div className="fg-card p-6 mb-8">
+          <h2 className="text-court-text font-black text-lg uppercase tracking-wide border-b-4 border-court-border pb-2 mb-4">
+            Peter&apos;s verdict
+          </h2>
+          <p className="text-court-text text-lg md:text-xl font-bold leading-relaxed whitespace-pre-wrap">
+            {roomState.verdictRationale}
+          </p>
+        </div>
+      )}
+
       {/* Scoreboard */}
-      <div className="bg-court-surface border border-court-border rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-serif font-bold text-court-text mb-4 text-center">Final Scores</h2>
+      <div className="fg-card p-6 mb-6">
+        <h2 className="text-lg font-black text-court-text mb-4 text-center border-b-4 border-court-border pb-2">Final Scores</h2>
         <div className="space-y-4">
           {sortedScores.map((score, i) => (
             <ScoreCard key={score.playerId} score={score} rank={i} medalColor={medalColors[i] || 'text-court-muted'} />
@@ -79,8 +87,8 @@ export default function VerdictView() {
 
       {/* Foreman Override */}
       {isForeman && !hasOverridden && roomState.scores.length > 0 && (
-        <div className="bg-court-surface border border-court-gold/50 rounded-2xl p-6 mb-6">
-          <h2 className="text-lg font-serif font-bold text-court-gold mb-3">Jury Foreman Override</h2>
+        <div className="fg-card-dark p-6 mb-6">
+          <h2 className="text-lg font-black text-court-text mb-3">Jury Foreman Override</h2>
           <p className="text-court-muted text-sm mb-4">
             As Jury Foreman, you may adjust one player's score by up to +/-15 points.
           </p>
@@ -118,9 +126,10 @@ export default function VerdictView() {
             </div>
 
             <button
+              type="button"
               onClick={handleOverride}
               disabled={!overrideTarget}
-              className="w-full bg-court-gold hover:bg-court-accent text-court-bg font-bold py-3 rounded-lg transition disabled:opacity-30"
+              className="w-full bg-court-gold hover:bg-yellow-300 text-court-text font-black py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition disabled:opacity-30"
             >
               Apply Override
             </button>
@@ -129,18 +138,20 @@ export default function VerdictView() {
       )}
 
       {/* Actions */}
-      <div className="flex gap-4 justify-center">
+      <div className="flex gap-4 justify-center flex-wrap">
         {isHost && (
           <button
+            type="button"
             onClick={handleRematch}
-            className="bg-court-gold hover:bg-court-accent text-court-bg font-bold px-8 py-3 rounded-xl transition"
+            className="bg-court-gold hover:bg-yellow-300 text-court-text font-black px-8 py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition"
           >
             Rematch (Same Players)
           </button>
         )}
         <button
+          type="button"
           onClick={handleNewGame}
-          className="bg-court-panel hover:bg-court-border text-court-text font-bold px-8 py-3 rounded-xl transition"
+          className="bg-court-panel hover:bg-yellow-200 text-court-text font-black px-8 py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition"
         >
           New Game
         </button>
@@ -153,7 +164,7 @@ function ScoreCard({ score, rank, medalColor }: { score: PlayerScore; rank: numb
   const medals = ['1st', '2nd', '3rd'];
 
   return (
-    <div className={`bg-court-bg border rounded-xl p-4 ${rank === 0 ? 'border-court-gold' : 'border-court-border/50'}`}>
+    <div className={`bg-white border-4 rounded-xl p-4 ${rank === 0 ? 'border-court-accent shadow-[3px_3px_0_0_#111827]' : 'border-court-border'}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <span className={`text-2xl font-bold ${medalColor}`}>

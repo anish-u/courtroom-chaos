@@ -54,6 +54,9 @@ export class RoomManager {
       winner: null,
       verdictRationale: null,
       phaseTimeRemaining: null,
+      caseIllustration: null,
+      caseIllustrationStatus: null,
+      caseIllustrationError: null,
     };
 
     this.rooms.set(code, room);

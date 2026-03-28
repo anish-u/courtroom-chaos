@@ -12,6 +12,7 @@ export interface GeminiProxyCallbacks {
   onSpeakerCall: (role: Role) => void;
   onReady: () => void;
   onError: (error: Error) => void;
+  onPlayerTranscript?: (text: string) => void;
 }
 
 export class GeminiLiveProxy {
@@ -23,6 +24,8 @@ export class GeminiLiveProxy {
   private transcript: TranscriptBuilder;
   private currentMood: JudgeMood = JudgeMood.NEUTRAL;
   private accumulatedText: string = '';
+  private pendingScoreFullText: string | null = null;
+  private scoreFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnected: boolean = false;
   private isSetupComplete: boolean = false;
   private reconnectAttempted: boolean = false;
@@ -175,14 +178,17 @@ export class GeminiLiveProxy {
         this.detectScoreBlock(this.accumulatedText);
       }
 
-      // Input transcription (user's speech as text -- for logging)
+      // Input transcription (player speech, for transcript UI)
       if (sc.inputTranscription?.text) {
-        console.log('[GeminiLive] User said:', sc.inputTranscription.text);
+        const t = sc.inputTranscription.text;
+        console.log('[GeminiLive] User said:', t);
+        this.callbacks.onPlayerTranscript?.(t);
       }
 
-      // Turn complete
+      // Turn complete — flush deferred score after this turn's audio
       if (sc.turnComplete) {
         console.log('[GeminiLive] Turn complete');
+        this.flushPendingScore();
       }
     }
   }
@@ -206,10 +212,25 @@ export class GeminiLiveProxy {
   }
 
   private detectScoreBlock(text: string): void {
-    if (text.includes('###SCORE_START###') && text.includes('###SCORE_END###')) {
-      this.callbacks.onScoreBlock(text);
-      this.accumulatedText = '';
+    if (!text.includes('###SCORE_START###') || !text.includes('###SCORE_END###')) return;
+    if (this.pendingScoreFullText) return;
+
+    this.pendingScoreFullText = text;
+    if (this.scoreFlushTimer) clearTimeout(this.scoreFlushTimer);
+    this.scoreFlushTimer = setTimeout(() => this.flushPendingScore(), 12_000);
+  }
+
+  private flushPendingScore(): void {
+    if (this.scoreFlushTimer) {
+      clearTimeout(this.scoreFlushTimer);
+      this.scoreFlushTimer = null;
     }
+    if (!this.pendingScoreFullText) return;
+
+    const payload = this.pendingScoreFullText;
+    this.pendingScoreFullText = null;
+    this.callbacks.onScoreBlock(payload);
+    this.accumulatedText = '';
   }
 
   private loadSystemPrompt(caseDetails: CaseDetails, room: RoomState): string {
@@ -281,6 +302,11 @@ BEGIN by introducing yourself as Judge Peter Griffin and the case.`;
 
   async disconnect(): Promise<void> {
     this.reconnectAttempted = true; // prevent reconnect after intentional disconnect
+    if (this.scoreFlushTimer) {
+      clearTimeout(this.scoreFlushTimer);
+      this.scoreFlushTimer = null;
+    }
+    this.pendingScoreFullText = null;
     if (this.session) {
       try {
         this.session.close();

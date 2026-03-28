@@ -19,6 +19,24 @@ export class TranscriptBuilder {
     return entry;
   }
 
+  /** Merge into last entry if same speaker within a few seconds (streaming STT chunks). */
+  appendOrMerge(speaker: string, role: Role | 'JUDGE', text: string): TranscriptEntry {
+    const last = this.entries[this.entries.length - 1];
+    const now = Date.now();
+    if (
+      last &&
+      last.speaker === speaker &&
+      last.role === role &&
+      now - last.timestamp < 4000
+    ) {
+      last.text = `${last.text}${last.text.endsWith(' ') || text.startsWith(' ') ? '' : ' '}${text}`.trim();
+      last.timestamp = now;
+      this.enforceLimit();
+      return last;
+    }
+    return this.append(speaker, role, text);
+  }
+
   getAll(): TranscriptEntry[] {
     return [...this.entries];
   }

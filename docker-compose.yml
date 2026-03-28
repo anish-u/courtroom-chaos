@@ -2,13 +2,15 @@ services:
   app:
     build: .
     ports:
-      - "${PORT:-3001}:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       PORT: "3001"
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3001}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-live-preview}
       GEMINI_VOICE: ${GEMINI_VOICE:-Fenrir}
+      GEMINI_CASE_MODEL: ${GEMINI_CASE_MODEL:-gemini-2.5-flash}
+      GEMINI_IMAGE_MODEL: ${GEMINI_IMAGE_MODEL:-gemini-3-pro-image-preview}
       ROOM_TTL_MS: ${ROOM_TTL_MS:-600000}
       JUDGE_PROMPT_PATH: "./prompts/judge-v1.txt"
     restart: unless-stopped

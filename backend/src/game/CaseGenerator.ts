@@ -3,29 +3,79 @@ import { CaseDetails } from '../types';
 
 const CASE_POOL: CaseDetails[] = [
   {
-    defendant: 'Gerald "The Goose" McHonkington',
-    crime: 'Grand Theft Birdseed from the Municipal Park Reserve',
-    evidence: ['A beak-shaped crowbar', 'Feathers found at the scene', 'A signed confession written in honking notation'],
+    defendant: 'The Fridge Raider',
+    crime: 'stealing the last slice of birthday cake from the office fridge',
+    evidence: ['Chocolate fingerprints on the Tupperware', 'A sticky note that says "not yours"', 'Security cam catching someone in socks'],
   },
   {
-    defendant: 'Professor Bartholomew Crumpet III',
-    crime: 'Illegally operating a time machine without a license',
-    evidence: ['A suspiciously ticking briefcase', 'A newspaper from 2087', 'A parking ticket from Ancient Rome'],
+    defendant: 'Captain Stinkfoot',
+    crime: 'farting too much during a two-hour elevator ride',
+    evidence: ['A can of air freshener used as a weapon', 'Witnesses crying', 'The elevator still marked as a hazmat zone'],
   },
   {
-    defendant: 'Señorita Margarita Pizzazz',
-    crime: 'Smuggling unlicensed dance moves across state lines',
-    evidence: ['A suitcase full of choreography notes', 'Surveillance footage of suspicious moonwalking', 'Witness testimony from a traumatized DJ'],
+    defendant: 'Aunt Karen\'s Nephew',
+    crime: 'using all the hot water so everyone else had cold showers for a week',
+    evidence: ['A 45-minute shower playlist', 'Fogged-up bathroom mirror selfies', 'The water bill'],
   },
   {
-    defendant: 'Captain Reginald Socksworth',
-    crime: 'Operating a pirate ship in a public swimming pool',
-    evidence: ['A miniature Jolly Roger flag', 'Pool floaties converted into cannons', 'A treasure map drawn on a swim noodle'],
+    defendant: 'Wi-Fi Leech',
+    crime: 'never paying for internet but using the neighbor\'s password for three years',
+    evidence: ['Router logs at 3 AM', 'A thank-you note that was sarcastic', 'Streaming in 4K from their garage'],
   },
   {
-    defendant: 'Dr. Waffles McFluffington',
-    crime: 'Performing unlicensed brain surgery on a teddy bear',
-    evidence: ['A teddy bear with a suspicious zipper', 'Cotton ball forensic evidence', 'A diploma from "Stuffed Animal Medical School"'],
+    defendant: 'The Remote Hog',
+    crime: 'hiding the TV remote during the big game',
+    evidence: ['Couch cushions surgically opened', 'Batteries in the cereal box', 'Smug face during commercials'],
+  },
+  {
+    defendant: 'Laundry Looter',
+    crime: 'taking someone else\'s socks from the dryer and wearing them',
+    evidence: ['One neon sock that isn\'t theirs', 'Lint as DNA', 'Instagram story "new drip"'],
+  },
+  {
+    defendant: 'Snack Smuggler',
+    crime: 'bringing loud crunchy chips to a library study session',
+    evidence: ['Decibel readings', 'A trail of crumbs to their desk', 'Empty bag rustled on purpose'],
+  },
+  {
+    defendant: 'Playlist Tyrant',
+    crime: 'playing the same song on repeat for an entire road trip',
+    evidence: ['Bluetooth history', 'Cousin\'s tears', 'The song is still stuck in everyone\'s head'],
+  },
+  {
+    defendant: 'Thermostat Villain',
+    crime: 'cranking the heat to 85 because "sweater weather is a mindset"',
+    evidence: ['Sweating houseplants', 'Ice cubes melting in the freezer', 'The electric bill'],
+  },
+  {
+    defendant: 'Leftover Bandit',
+    crime: 'eating someone\'s labeled leftovers that clearly said "DO NOT TOUCH"',
+    evidence: ['Empty container in the trash', 'Lies about "I thought it was communal"', 'Sauce on their chin'],
+  },
+  {
+    defendant: 'Group Chat Menace',
+    crime: 'sending 200 "good morning" stickers before 7 AM',
+    evidence: ['Phone notifications as evidence', 'Coworkers with eye twitch', 'Mute button abuse'],
+  },
+  {
+    defendant: 'Parking Spot Thief',
+    crime: 'taking the spot someone was clearly waiting for with their blinker on',
+    evidence: ['Dash cam drama', 'Honking symphony', 'Passive-aggressive note under the wiper'],
+  },
+  {
+    defendant: 'Dishwasher Dodger',
+    crime: 'leaving one fork in the sink for six months to avoid rotation duty',
+    evidence: ['The fork has a name now', 'Roommate spreadsheet', 'Archaeological carbon dating of the cereal bowl'],
+  },
+  {
+    defendant: 'Movie Spoiler',
+    crime: 'yelling the twist ending in the theater lobby',
+    evidence: ['Popcorn thrown as projectiles', 'Banned from the multiplex', 'Group chat exile'],
+  },
+  {
+    defendant: 'Plant Neglecter Turned Overwaterer',
+    crime: 'killing the office plant by "loving it too much" with daily floods',
+    evidence: ['Muddy desk', 'A eulogy sticky note', 'The succulent is now soup'],
   },
 ];
 
@@ -44,14 +94,14 @@ export async function generateCase(): Promise<CaseDetails> {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
-      contents: `Invent ONE absurd, hilarious courtroom case. Be wildly creative and random every time — never repeat themes.
+      model: process.env.GEMINI_CASE_MODEL || 'gemini-2.5-flash',
+      contents: `Invent ONE silly, easy-to-understand dispute for a comedy courtroom. Keep it SHORT and relatable — everyday situations (roommates, office, family, neighbors, pets, food, bathrooms, Wi‑Fi, TV remote). Weird but obvious in one sentence. No elaborate lore, no sci‑fi, no epic fantasy.
 
-Return ONLY valid JSON (no markdown fences) matching this shape:
+Return ONLY valid JSON (no markdown fences):
 {
-  "defendant": "A fictional name with a funny title or nickname",
-  "crime": "A completely absurd crime described in one sentence",
-  "evidence": ["piece 1", "piece 2", "piece 3"]
+  "defendant": "A short funny nickname or title for the accused (not a long name)",
+  "crime": "One plain sentence: what they are accused of doing",
+  "evidence": ["simple joke evidence 1", "simple joke evidence 2", "simple joke evidence 3"]
 }`,
     });
 

@@ -45,6 +45,9 @@ export class GameStateManager {
     room.verdictRationale = null;
     room.phaseTimeRemaining = null;
     room.caseDetails = null;
+    room.caseIllustration = null;
+    room.caseIllustrationStatus = null;
+    room.caseIllustrationError = null;
     room.players.forEach(p => { p.role = null; });
   }
 }

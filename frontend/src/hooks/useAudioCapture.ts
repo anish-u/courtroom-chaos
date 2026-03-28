@@ -10,6 +10,9 @@ export function useAudioCapture(onChunk: (base64: string) => void) {
 
   const start = useCallback(async () => {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Microphone needs HTTPS or localhost');
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
