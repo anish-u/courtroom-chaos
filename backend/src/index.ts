@@ -159,7 +159,7 @@ io.on('connection', (socket) => {
 
     roomManager.assignRandomRoles(parsed.data.code);
 
-    const caseDetails = generateCase();
+    const caseDetails = await generateCase();
     const defendant = room.players.find(p => p.role === Role.DEFENDANT);
     if (defendant) {
       caseDetails.defendant = defendant.name;

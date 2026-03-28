@@ -33,14 +33,14 @@ const MOOD_DISPLAY: Record<JudgeMood, { emoji: string; label: string }> = {
 
 export default function GameView() {
   const navigate = useNavigate();
-  const { sendAudioChunk, kickPlayer } = useSocket();
+  const { sendAudioChunk } = useSocket();
   const { roomState, socketId, isJudgeSpeaking } = useGameStore();
   const playerAudioCtxRef = useRef<AudioContext | null>(null);
   const playerNextStartRef = useRef(0);
 
   const isActiveSpeaker = roomState?.activeSpeaker === socketId;
   const myPlayer = roomState?.players.find(p => p.socketId === socketId);
-  const isHost = myPlayer?.isHost ?? false;
+
 
   const { playChunk: playJudgeChunk } = useAudioPlayback();
 
@@ -259,14 +259,6 @@ export default function GameView() {
                   <span className="text-xs bg-court-gold/20 text-court-gold px-2 py-0.5 rounded">
                     {ROLE_LABELS[player.role]}
                   </span>
-                )}
-                {isHost && player.socketId !== socketId && (
-                  <button
-                    onClick={() => kickPlayer(roomState.code, player.socketId)}
-                    className="text-xs text-red-400 hover:text-red-300"
-                  >
-                    Kick
-                  </button>
                 )}
               </div>
             </div>

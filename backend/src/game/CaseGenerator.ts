@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai';
 import { CaseDetails } from '../types';
 
 const CASE_POOL: CaseDetails[] = [
@@ -26,91 +27,55 @@ const CASE_POOL: CaseDetails[] = [
     crime: 'Performing unlicensed brain surgery on a teddy bear',
     evidence: ['A teddy bear with a suspicious zipper', 'Cotton ball forensic evidence', 'A diploma from "Stuffed Animal Medical School"'],
   },
-  {
-    defendant: 'The Honorable Cheese Wheel Johnson',
-    crime: 'Impersonating a wheel of aged Gouda at a cheese festival',
-    evidence: ['A yellow body suit with suspicious holes', 'A fake cheese certification', 'Witness reports of "human-like blinking"'],
-  },
-  {
-    defendant: 'Madame Sparkletoots the Magnificent',
-    crime: 'Running an underground glitter trafficking ring',
-    evidence: ['47 pounds of unregistered craft glitter', 'A coded message written in sequins', 'Glitter residue on every surface within 3 miles'],
-  },
-  {
-    defendant: 'Broseph "Bro" Broheimer',
-    crime: 'Excessive high-fiving in a no-high-five zone',
-    evidence: ['Red handprint marks on 23 victims', 'Security footage of an unbroken 4-hour high-five streak', 'A hand-shaped dent in a stop sign'],
-  },
-  {
-    defendant: 'Countess Penelope von Noodlesworth',
-    crime: 'Replacing the town\'s water supply with chicken broth',
-    evidence: ['Suspiciously savory tap water samples', 'An industrial broth funnel', 'A manifesto titled "The Broth Supremacy"'],
-  },
-  {
-    defendant: 'Detective Mittens Whiskerface',
-    crime: 'Framing an innocent goldfish for bank robbery',
-    evidence: ['A tiny ski mask found in a fishbowl', 'Forged paw-print evidence', 'A catnip-funded offshore account'],
-  },
-  {
-    defendant: 'Sir Reginald Von Floppington',
-    crime: 'Launching a rogue satellite made entirely of toast',
-    evidence: ['Breadcrumbs in low-Earth orbit', 'A butter-stained launch manifest', 'NASA complaints about "breakfast interference"'],
-  },
-  {
-    defendant: 'Grandma "Speed Demon" Ethel',
-    crime: 'Drag racing mobility scooters in a hospital corridor',
-    evidence: ['Tire marks on the ICU floor', 'A NOS canister attached to a scooter basket', 'A checkered flag made from hospital gowns'],
-  },
-  {
-    defendant: 'The Mysterious Figure Known Only As "Kevin"',
-    crime: 'Stealing the concept of Tuesdays',
-    evidence: ['Calendars worldwide now skip from Monday to Wednesday', 'A vault containing 52 stolen Tuesdays', 'A ransom note demanding "better weekend placement"'],
-  },
-  {
-    defendant: 'Baron Reginald Fluffernutter',
-    crime: 'Tax evasion through an elaborate system of sock puppets',
-    evidence: ['327 sock puppets each with their own Social Security number', 'Tiny briefcases containing miniature tax returns', 'A puppet-sized offshore bank in the Cayman Islands'],
-  },
-  {
-    defendant: 'DJ Thundersocks',
-    crime: 'Noise pollution from playing the world\'s loudest kazoo at 3 AM',
-    evidence: ['A weaponized kazoo registered as a class-3 instrument', 'Seismograph readings from the kazoo solo', 'Noise complaints from residents 4 towns over'],
-  },
-  {
-    defendant: 'Professor Linguini Fettuccine',
-    crime: 'Teaching spaghetti to become sentient',
-    evidence: ['A bowl of pasta that passed the Turing test', 'Lab notes titled "Project Al Dente"', 'A spaghetti strand that filed for workers\' compensation'],
-  },
-  {
-    defendant: 'Lord Reginald Bumblesworth',
-    crime: 'Training an army of bees to deliver strongly-worded letters',
-    evidence: ['Bee-sting sealed envelopes', 'A beehive converted into a mail sorting facility', 'Multiple victims with "buzz off" stung into their arms'],
-  },
-  {
-    defendant: 'Mx. Pudding Pop Deluxe',
-    crime: 'Operating a black-market rainbow factory without EPA approval',
-    evidence: ['Unauthorized rainbows appearing over the defendant\'s property', 'Barrels of concentrated ROYGBIV', 'A Leprechaun union grievance filing'],
-  },
-  {
-    defendant: 'General Tater Tot McSprout',
-    crime: 'Attempting to overthrow the government with a potato-based militia',
-    evidence: ['A manifesto titled "The Tuber Revolution"', 'Potato guns modified for combat use', 'A war room map where every country is renamed after a potato dish'],
-  },
-  {
-    defendant: 'Ambassador Quacksworth of the Pond Republic',
-    crime: 'Diplomatic fraud — claiming to represent a nation of ducks',
-    evidence: ['A forged treaty signed with a webbed footprint', 'A "passport" laminated in bread crumbs', 'United Nations complaints about "persistent quacking during sessions"'],
-  },
 ];
 
-let lastCaseIndex = -1;
-
-export function generateCase(): CaseDetails {
-  let index: number;
-  do {
-    index = Math.floor(Math.random() * CASE_POOL.length);
-  } while (index === lastCaseIndex && CASE_POOL.length > 1);
-
-  lastCaseIndex = index;
+function pickFromPool(): CaseDetails {
+  const index = Math.floor(Math.random() * CASE_POOL.length);
   return { ...CASE_POOL[index] };
+}
+
+export async function generateCase(): Promise<CaseDetails> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn('[CaseGenerator] No GEMINI_API_KEY, falling back to pool');
+    return pickFromPool();
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-lite-preview',
+      contents: `Invent ONE absurd, hilarious courtroom case. Be wildly creative and random every time — never repeat themes.
+
+Return ONLY valid JSON (no markdown fences) matching this shape:
+{
+  "defendant": "A fictional name with a funny title or nickname",
+  "crime": "A completely absurd crime described in one sentence",
+  "evidence": ["piece 1", "piece 2", "piece 3"]
+}`,
+    });
+
+    const text = response.text?.trim();
+    if (!text) throw new Error('Empty response');
+
+    const parsed = JSON.parse(text);
+    if (
+      typeof parsed.defendant === 'string' &&
+      typeof parsed.crime === 'string' &&
+      Array.isArray(parsed.evidence) &&
+      parsed.evidence.length >= 1
+    ) {
+      console.log('[CaseGenerator] AI-generated case:', parsed.defendant);
+      return {
+        defendant: parsed.defendant,
+        crime: parsed.crime,
+        evidence: parsed.evidence.slice(0, 3).map(String),
+      };
+    }
+
+    throw new Error('Invalid shape from Gemini');
+  } catch (err) {
+    console.warn('[CaseGenerator] AI generation failed, falling back to pool:', err);
+    return pickFromPool();
+  }
 }
