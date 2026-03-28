@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useSocket } from "../hooks/useSocket";
+import { useLobbyBgm } from "../hooks/useLobbyBgm";
 import { useGameStore, Phase } from "../store/gameStore";
 
 export default function LobbyView() {
@@ -9,6 +10,7 @@ export default function LobbyView() {
   const [searchParams] = useSearchParams();
   const { createRoom, joinRoom, kickPlayer, startGame } = useSocket();
   const { roomState, playerName, setPlayerName, socketId } = useGameStore();
+  const { audioRef, muted, toggleMute } = useLobbyBgm();
 
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState("");
@@ -100,77 +102,89 @@ export default function LobbyView() {
     }
   };
 
-  if (!roomState) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="text-center mb-10">
-            <h1 className="text-5xl font-black text-court-gold mb-2 tracking-tight drop-shadow-[3px_3px_0_#111827]">
-              Courtroom Chaos
-            </h1>
-            <p className="text-white/90 text-lg font-bold">
-              Judge Peter Griffin Presiding
-            </p>
-          </div>
-
-          <div className="fg-card p-8 space-y-6">
-            <div>
-              <label className="block text-sm text-court-muted font-bold mb-2">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Enter your name..."
-                maxLength={30}
-                className="w-full bg-white border-4 border-court-border rounded-xl px-4 py-3 text-court-text placeholder:text-court-muted/50 focus:outline-none focus:ring-2 focus:ring-court-accent transition font-semibold"
-              />
-            </div>
-
-            <button
-              onClick={handleCreate}
-              disabled={isLoading}
-              className="w-full bg-court-gold hover:bg-yellow-300 text-court-text font-black py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
-            >
-              {isLoading ? "Creating..." : "Create New Game"}
-            </button>
-
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-1 bg-court-border rounded" />
-              <span className="text-court-muted text-sm font-bold">or join</span>
-              <div className="flex-1 h-1 bg-court-border rounded" />
-            </div>
-
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="Room code"
-                maxLength={6}
-                className="flex-1 bg-white border-4 border-court-border rounded-xl px-4 py-3 text-court-text placeholder:text-court-muted/50 focus:outline-none focus:ring-2 focus:ring-court-accent transition uppercase tracking-widest text-center font-mono font-black"
-              />
-              <button
-                onClick={handleJoin}
-                disabled={isLoading}
-                className="bg-court-panel hover:bg-yellow-200 text-court-text font-black px-6 py-3 rounded-xl border-4 border-court-border shadow-[3px_3px_0_0_#111827] transition disabled:opacity-50"
-              >
-                Join
-              </button>
-            </div>
-
-            {error && (
-              <p className="text-red-600 text-sm text-center font-bold">{error}</p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const bgmToggle = (
+    <button
+      type="button"
+      onClick={toggleMute}
+      className="fixed bottom-4 right-4 z-50 bg-court-panel hover:bg-yellow-200 text-court-text text-xs font-black px-3 py-2 rounded-xl border-4 border-court-border shadow-[3px_3px_0_0_#111827] transition"
+      aria-pressed={!muted}
+      aria-label={muted ? "Turn lobby music on" : "Turn lobby music off"}
+    >
+      {muted ? "Music: off" : "Music: on"}
+    </button>
+  );
 
   return (
-    <div className="min-h-screen p-4 max-w-2xl mx-auto">
+    <>
+      <audio ref={audioRef} className="hidden" playsInline />
+      {bgmToggle}
+      {!roomState ? (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <div className="text-center mb-10">
+              <h1 className="text-5xl font-black text-court-gold mb-2 tracking-tight drop-shadow-[3px_3px_0_#111827]">
+                Courtroom Chaos
+              </h1>
+              <p className="text-white/90 text-lg font-bold">
+                Judge Peter Griffin Presiding
+              </p>
+            </div>
+
+            <div className="fg-card p-8 space-y-6">
+              <div>
+                <label className="block text-sm text-court-muted font-bold mb-2">
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  placeholder="Enter your name..."
+                  maxLength={30}
+                  className="w-full bg-white border-4 border-court-border rounded-xl px-4 py-3 text-court-text placeholder:text-court-muted/50 focus:outline-none focus:ring-2 focus:ring-court-accent transition font-semibold"
+                />
+              </div>
+
+              <button
+                onClick={handleCreate}
+                disabled={isLoading}
+                className="w-full bg-court-gold hover:bg-yellow-300 text-court-text font-black py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              >
+                {isLoading ? "Creating..." : "Create New Game"}
+              </button>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-1 bg-court-border rounded" />
+                <span className="text-court-muted text-sm font-bold">or join</span>
+                <div className="flex-1 h-1 bg-court-border rounded" />
+              </div>
+
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="Room code"
+                  maxLength={6}
+                  className="flex-1 bg-white border-4 border-court-border rounded-xl px-4 py-3 text-court-text placeholder:text-court-muted/50 focus:outline-none focus:ring-2 focus:ring-court-accent transition uppercase tracking-widest text-center font-mono font-black"
+                />
+                <button
+                  onClick={handleJoin}
+                  disabled={isLoading}
+                  className="bg-court-panel hover:bg-yellow-200 text-court-text font-black px-6 py-3 rounded-xl border-4 border-court-border shadow-[3px_3px_0_0_#111827] transition disabled:opacity-50"
+                >
+                  Join
+                </button>
+              </div>
+
+              {error && (
+                <p className="text-red-600 text-sm text-center font-bold">{error}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="min-h-screen p-4 max-w-2xl mx-auto">
       <div className="text-center mb-6">
         <h1 className="text-3xl font-black text-court-gold mb-1 drop-shadow-[2px_2px_0_#111827]">
           Courtroom Chaos
@@ -262,6 +276,8 @@ export default function LobbyView() {
       {error && (
         <p className="text-red-200 text-sm text-center mt-4 font-bold drop-shadow">{error}</p>
       )}
-    </div>
+        </div>
+      )}
+    </>
   );
 }

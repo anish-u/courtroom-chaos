@@ -11,6 +11,7 @@ import { RoomManager } from './rooms/RoomManager';
 import { GameStateManager } from './game/GameStateManager';
 import { generateCase } from './game/CaseGenerator';
 import { generateCaseIllustration } from './game/CaseIllustration';
+import { getOrGenerateLobbyBgm } from './game/LobbyBgm';
 import { GeminiLiveProxy, GeminiProxyCallbacks } from './gemini/GeminiLiveProxy';
 import { TranscriptBuilder } from './transcript/TranscriptBuilder';
 import { parseScores, parseVerdict, computeScores, applyForemanOverride } from './game/Scorer';
@@ -25,6 +26,19 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+app.get('/api/bgm/lobby', async (_req, res) => {
+  try {
+    const buf = await getOrGenerateLobbyBgm();
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[LobbyBgm]', msg);
+    res.status(503).json({ error: 'Lobby music unavailable', detail: msg });
+  }
 });
 
 const clientBuildPath = path.join(__dirname, '../../frontend/dist');
