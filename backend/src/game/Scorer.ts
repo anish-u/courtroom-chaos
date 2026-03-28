@@ -7,22 +7,42 @@ interface RawScore {
   absurdity: number;
 }
 
-export function parseScores(text: string): RawScore[] | null {
+function extractScoreJson(text: string): string | null {
   const startMarker = '###SCORE_START###';
   const endMarker = '###SCORE_END###';
-
   const startIdx = text.indexOf(startMarker);
   const endIdx = text.indexOf(endMarker);
-
   if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return null;
+  return text.slice(startIdx + startMarker.length, endIdx).trim();
+}
 
-  const jsonStr = text.slice(startIdx + startMarker.length, endIdx).trim();
+export function parseVerdict(text: string): 'GUILTY' | 'NOT_GUILTY' | null {
+  const jsonStr = extractScoreJson(text);
+  if (!jsonStr) return null;
+  try {
+    const parsed = JSON.parse(jsonStr);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const v = parsed.verdict;
+      if (v === 'GUILTY' || v === 'NOT_GUILTY') return v;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export function parseScores(text: string): RawScore[] | null {
+  const jsonStr = extractScoreJson(text);
+  if (!jsonStr) return null;
 
   try {
     const parsed = JSON.parse(jsonStr);
-    if (!Array.isArray(parsed)) return null;
 
-    return parsed.map((entry: any) => ({
+    // New format: { verdict: "...", scores: [...] }
+    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.scores) ? parsed.scores : null);
+    if (!arr) return null;
+
+    return arr.map((entry: any) => ({
       playerId: String(entry.playerId || ''),
       creativity: Number(entry.creativity) || 0,
       persuasiveness: Number(entry.persuasiveness) || 0,

@@ -74,7 +74,9 @@ export interface RoomState {
   transcript: TranscriptEntry[];
   scores: PlayerScore[];
   winner: string | null;
+  caseVerdict: 'GUILTY' | 'NOT_GUILTY' | null;
   verdictRationale: string | null;
+  rematchReady: string[];
   phaseTimeRemaining: number | null;
   caseIllustration: string | null;
   caseIllustrationStatus: CaseIllustrationStatus;

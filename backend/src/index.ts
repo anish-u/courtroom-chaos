@@ -13,7 +13,7 @@ import { generateCase } from './game/CaseGenerator';
 import { generateCaseIllustration } from './game/CaseIllustration';
 import { GeminiLiveProxy, GeminiProxyCallbacks } from './gemini/GeminiLiveProxy';
 import { TranscriptBuilder } from './transcript/TranscriptBuilder';
-import { parseScores, computeScores, applyForemanOverride } from './game/Scorer';
+import { parseScores, parseVerdict, computeScores, applyForemanOverride } from './game/Scorer';
 import { Phase, Role, RoomState } from './types';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -142,7 +142,9 @@ function sanitizeRoom(room: RoomState) {
     transcript: room.transcript,
     scores: room.scores,
     winner: room.winner,
+    caseVerdict: room.caseVerdict,
     verdictRationale: room.verdictRationale,
+    rematchReady: room.rematchReady,
     phaseTimeRemaining: room.phaseTimeRemaining,
     caseIllustration: room.caseIllustration,
     caseIllustrationStatus: room.caseIllustrationStatus,
@@ -308,11 +310,28 @@ io.on('connection', (socket) => {
           const rationale = extractVerdictRationale(text);
           room.verdictRationale = rationale || null;
 
+          const caseVerdict = parseVerdict(text);
+          room.caseVerdict = caseVerdict;
+
           const rawScores = parseScores(text);
           room.scores = computeScores(room, rawScores);
+
           if (room.scores.length > 0) {
-            const winner = room.scores.reduce((a, b) => a.scores.total > b.scores.total ? a : b);
-            room.winner = winner.playerName;
+            if (caseVerdict === 'GUILTY') {
+              const winningSide = room.scores.filter(s =>
+                ([Role.PROSECUTOR, Role.WITNESS_1, Role.WITNESS_2] as string[]).includes(s.role)
+              );
+              const pool = winningSide.length ? winningSide : room.scores;
+              room.winner = pool.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+            } else if (caseVerdict === 'NOT_GUILTY') {
+              const winningSide = room.scores.filter(s =>
+                ([Role.DEFENSE, Role.DEFENDANT] as string[]).includes(s.role)
+              );
+              const pool = winningSide.length ? winningSide : room.scores;
+              room.winner = pool.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+            } else {
+              room.winner = room.scores.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+            }
           }
 
           gameStateManager.endGame(room);
@@ -420,8 +439,31 @@ io.on('connection', (socket) => {
 
     room.scores = applyForemanOverride(room.scores, parsed.data.targetPlayerId, parsed.data.modifier);
     if (room.scores.length > 0) {
-      const winner = room.scores.reduce((a, b) => a.scores.total > b.scores.total ? a : b);
-      room.winner = winner.playerName;
+      if (room.caseVerdict === 'GUILTY') {
+        const winningSide = room.scores.filter(s =>
+          ([Role.PROSECUTOR, Role.WITNESS_1, Role.WITNESS_2] as string[]).includes(s.role)
+        );
+        const pool = winningSide.length ? winningSide : room.scores;
+        room.winner = pool.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+      } else if (room.caseVerdict === 'NOT_GUILTY') {
+        const winningSide = room.scores.filter(s =>
+          ([Role.DEFENSE, Role.DEFENDANT] as string[]).includes(s.role)
+        );
+        const pool = winningSide.length ? winningSide : room.scores;
+        room.winner = pool.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+      } else {
+        room.winner = room.scores.reduce((a, b) => a.scores.total > b.scores.total ? a : b).playerName;
+      }
+    }
+    broadcastRoomState(room);
+    ack?.({ ok: true });
+  });
+
+  socket.on('game:readyForRematch', (data, ack) => {
+    const room = roomManager.getRoomByPlayer(socket.id);
+    if (!room || room.phase !== Phase.SCORING) return ack?.({ error: 'Invalid state' });
+    if (!room.rematchReady.includes(socket.id)) {
+      room.rematchReady.push(socket.id);
     }
     broadcastRoomState(room);
     ack?.({ ok: true });
@@ -434,6 +476,11 @@ io.on('connection', (socket) => {
     const room = roomManager.getRoom(parsed.data.code);
     if (!room) return ack?.({ error: 'Room not found' });
 
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player?.isHost) return ack?.({ error: 'Only the host can start the next round' });
+
+    const keepIds = room.rematchReady.length > 0 ? room.rematchReady : room.players.map(p => p.socketId);
+
     const proxy = geminiProxies.get(room.code);
     if (proxy) {
       proxy.disconnect();
@@ -441,7 +488,8 @@ io.on('connection', (socket) => {
     }
 
     transcripts.delete(room.code);
-    gameStateManager.resetForRematch(room);
+    roomManager.removePlayersNotIn(room.code, keepIds);
+    gameStateManager.resetForRematch(room, keepIds);
     broadcastRoomState(room);
     ack?.({ ok: true });
   });

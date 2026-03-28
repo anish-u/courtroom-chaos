@@ -57,10 +57,12 @@ SCORING (immediately after your spoken verdict sentences):
 After your 2–4 sentence verdict is complete, you MUST emit a scoring block in this exact format:
 
 ###SCORE_START###
-[{"playerId":"player_name","creativity":N,"persuasiveness":N,"absurdity":N}]
+{"verdict":"GUILTY","scores":[{"playerId":"player_name","creativity":N,"persuasiveness":N,"absurdity":N}]}
 ###SCORE_END###
 
-Where N is a score from 0 to 100 for each player (excluding the jury foreman).
+The "verdict" field MUST be exactly "GUILTY" or "NOT_GUILTY" — matching your spoken ruling.
+The "scores" array lists every player (excluding the jury foreman).
+Where N is a score from 0 to 100.
 Use their REAL NAMES as the playerId values.
 Scoring weights: creativity 30%, persuasiveness 30%, absurdity 40%.
 

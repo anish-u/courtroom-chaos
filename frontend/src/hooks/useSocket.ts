@@ -127,6 +127,12 @@ export function useSocket() {
     []
   );
 
+  const readyForRematch = useCallback((): Promise<{ ok?: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socket.current.emit('game:readyForRematch', {}, resolve);
+    });
+  }, []);
+
   const rematch = useCallback((code: string): Promise<{ ok?: boolean; error?: string }> => {
     return new Promise((resolve) => {
       socket.current.emit('game:rematch', { code }, resolve);
@@ -141,6 +147,7 @@ export function useSocket() {
     startGame,
     sendAudioChunk,
     foremanOverride,
+    readyForRematch,
     rematch,
   };
 }

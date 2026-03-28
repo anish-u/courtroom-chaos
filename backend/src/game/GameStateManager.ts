@@ -36,18 +36,24 @@ export class GameStateManager {
     this.onPhaseChange(room);
   }
 
-  resetForRematch(room: RoomState): void {
+  resetForRematch(room: RoomState, keepSocketIds: string[]): void {
+    room.players = room.players.filter(p => keepSocketIds.includes(p.socketId));
+    if (room.players.length > 0 && !room.players.some(p => p.isHost)) {
+      room.players[0].isHost = true;
+    }
     room.phase = Phase.LOBBY;
     room.activeSpeaker = null;
     room.transcript = [];
     room.scores = [];
     room.winner = null;
+    room.caseVerdict = null;
     room.verdictRationale = null;
+    room.rematchReady = [];
     room.phaseTimeRemaining = null;
     room.caseDetails = null;
     room.caseIllustration = null;
     room.caseIllustrationStatus = null;
     room.caseIllustrationError = null;
-    room.players.forEach(p => { p.role = null; });
+    room.players.forEach(p => { p.role = null; p.connected = true; });
   }
 }

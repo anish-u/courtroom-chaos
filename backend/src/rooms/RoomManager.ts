@@ -52,7 +52,9 @@ export class RoomManager {
       transcript: [],
       scores: [],
       winner: null,
+      caseVerdict: null,
       verdictRationale: null,
+      rematchReady: [],
       phaseTimeRemaining: null,
       caseIllustration: null,
       caseIllustrationStatus: null,
@@ -180,6 +182,14 @@ export class RoomManager {
       this.deleteRoom(code);
     }, this.roomTtlMs);
     this.cleanupTimers.set(code, timer);
+  }
+
+  removePlayersNotIn(code: string, keepSocketIds: string[]): void {
+    const room = this.rooms.get(code);
+    if (!room) return;
+    room.players
+      .filter(p => !keepSocketIds.includes(p.socketId))
+      .forEach(p => this.playerToRoom.delete(p.socketId));
   }
 
   reconnect(socketId: string, code: string, playerName: string): RoomState | null {
