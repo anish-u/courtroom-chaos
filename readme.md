@@ -1,8 +1,16 @@
 # Courtroom Chaos
 
+<!-- <img width="1280" height="806" alt="game-screen" src="https://github.com/user-attachments/assets/a25a3227-b74c-46be-8613-7c6fbc9dc087" /> -->
+
 A real-time multiplayer courtroom game where **Peter Griffin** is the AI judge. Players argue absurd cases using voice while Peter interrupts, laughs, goes on tangents, and delivers hilariously flawed verdicts.
 
 Built with the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live-api) for real-time AI voice interaction.
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=BMcBuPgPyVM">
+    <img src="https://img.youtube.com/vi/BMcBuPgPyVM/0.jpg" alt="Courtroom Chaos"/>
+  </a>
+</p>
 
 ## How It Works
 
@@ -53,7 +61,8 @@ cd frontend && npm run dev    # http://localhost:5173
 | `GEMINI_MODEL` | `gemini-3.1-flash-live-preview` | Gemini Live model name |
 | `GEMINI_VOICE` | `Fenrir` | Voice preset (Excitable) |
 | `GEMINI_CASE_MODEL` | `gemini-2.0-flash` | Text model for AI-generated case blurbs |
-| `GEMINI_IMAGE_MODEL` | `imagen-3.0-generate-002` | Case cartoon image (optional; needs Imagen API access) |
+| `GEMINI_IMAGE_MODEL` | `gemini-3-pro-image-preview` | Case cartoon image (optional; needs Imagen API access) |
+| `GEMINI_BGM_MODEL` | `lyria-3-clip-preview` | Lobby BGM using Lyria |
 | `PORT` | `3001` | Backend port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Frontend origin for CORS |
 
