@@ -28,7 +28,7 @@ export class RoomManager {
     this.roomTtlMs = roomTtlMs;
   }
 
-  createRoom(hostSocketId: string, hostName: string): RoomState {
+  createRoom(hostSocketId: string, hostName: string, hostApiKey: string): RoomState {
     let code: string;
     do {
       code = generateRoomCode();
@@ -59,6 +59,7 @@ export class RoomManager {
       caseIllustration: null,
       caseIllustrationStatus: null,
       caseIllustrationError: null,
+      hostApiKey,
     };
 
     this.rooms.set(code, room);
@@ -166,6 +167,11 @@ export class RoomManager {
   deleteRoom(code: string): void {
     const room = this.rooms.get(code);
     if (room) {
+      // Scrub the host API key reference before letting the room object go.
+      // Belt-and-suspenders: it should already be unreferenced once the Map
+      // entry is removed, but explicit clearing makes intent obvious and avoids
+      // any chance of it lingering through a captured closure.
+      room.hostApiKey = '';
       room.players.forEach(p => this.playerToRoom.delete(p.socketId));
       this.rooms.delete(code);
     }

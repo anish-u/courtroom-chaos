@@ -13,6 +13,7 @@ import { generateCase } from './game/CaseGenerator';
 import { generateCaseIllustration } from './game/CaseIllustration';
 import { getOrGenerateLobbyBgm } from './game/LobbyBgm';
 import { GeminiLiveProxy, GeminiProxyCallbacks } from './gemini/GeminiLiveProxy';
+import { validateApiKey } from './gemini/ValidateKey';
 import { TranscriptBuilder } from './transcript/TranscriptBuilder';
 import { parseScores, parseVerdict, computeScores, applyForemanOverride } from './game/Scorer';
 import { Phase, Role, RoomState } from './types';
@@ -29,6 +30,13 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('/api/bgm/lobby', async (_req, res) => {
+  // Lobby BGM is generated before any room exists, so it cannot use a host's
+  // API key. Operators may opt-in by setting GEMINI_API_KEY in the server
+  // environment; otherwise we return 204 and the client falls back to silence.
+  if (!process.env.GEMINI_API_KEY) {
+    res.status(204).end();
+    return;
+  }
   try {
     const buf = await getOrGenerateLobbyBgm();
     res.setHeader('Content-Type', 'audio/mpeg');
@@ -172,7 +180,10 @@ const gameStateManager = new GameStateManager(
   }
 );
 
-const CreateRoomSchema = z.object({ playerName: z.string().min(1).max(30) });
+const CreateRoomSchema = z.object({
+  playerName: z.string().min(1).max(30),
+  apiKey: z.string().min(1, 'API key is required').max(500),
+});
 const JoinRoomSchema = z.object({ code: z.string().length(6), playerName: z.string().min(1).max(30) });
 const KickPlayerSchema = z.object({ code: z.string().length(6), targetSocketId: z.string() });
 const StartGameSchema = z.object({ code: z.string().length(6) });
@@ -188,12 +199,20 @@ const ReconnectSchema = z.object({ code: z.string().length(6), playerName: z.str
 io.on('connection', (socket) => {
   console.log('Connected:', socket.id);
 
-  socket.on('room:create', (data, ack) => {
+  socket.on('room:create', async (data, ack) => {
     const parsed = CreateRoomSchema.safeParse(data);
     if (!parsed.success) return ack?.({ error: parsed.error.message });
 
+    const validation = await validateApiKey(parsed.data.apiKey);
+    if (!validation.ok) return ack?.({ error: validation.error });
+
     try {
-      const room = roomManager.createRoom(socket.id, parsed.data.playerName);
+      // Never log `parsed.data` or the room object directly — both contain the host API key.
+      const room = roomManager.createRoom(
+        socket.id,
+        parsed.data.playerName,
+        parsed.data.apiKey
+      );
       socket.join(room.code);
       broadcastRoomState(room);
       ack?.({ room: sanitizeRoom(room) });
@@ -258,7 +277,9 @@ io.on('connection', (socket) => {
 
     roomManager.assignRandomRoles(parsed.data.code);
 
-    const caseDetails = await generateCase();
+    const apiKey = room.hostApiKey;
+
+    const caseDetails = await generateCase(apiKey);
     const defendant = room.players.find(p => p.role === Role.DEFENDANT);
     if (defendant) {
       caseDetails.defendant = defendant.name;
@@ -272,13 +293,13 @@ io.on('connection', (socket) => {
     const roomCodeForArt = room.code;
     const caseDetailsForArt = { ...caseDetails };
     void (async () => {
-      const key = process.env.GEMINI_API_KEY;
-      const imgModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
       const r = roomManager.getRoom(roomCodeForArt);
       if (!r) return;
-      if (!key || key === 'your_api_key_here') {
+      const key = r.hostApiKey;
+      const imgModel = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+      if (!key) {
         r.caseIllustrationStatus = 'error';
-        r.caseIllustrationError = 'Image generation disabled (set GEMINI_API_KEY)';
+        r.caseIllustrationError = 'Image generation disabled (host API key missing)';
         broadcastRoomState(r);
         return;
       }
@@ -300,8 +321,7 @@ io.on('connection', (socket) => {
     const transcript = new TranscriptBuilder();
     transcripts.set(room.code, transcript);
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey && apiKey !== 'your_api_key_here') {
+    if (apiKey) {
       const callbacks: GeminiProxyCallbacks = {
         onAudio: (base64Audio) => {
           io.to(room.code).emit('judge:audio', { audio: base64Audio });

@@ -84,10 +84,9 @@ function pickFromPool(): CaseDetails {
   return { ...CASE_POOL[index] };
 }
 
-export async function generateCase(): Promise<CaseDetails> {
-  const apiKey = process.env.GEMINI_API_KEY;
+export async function generateCase(apiKey: string): Promise<CaseDetails> {
   if (!apiKey) {
-    console.warn('[CaseGenerator] No GEMINI_API_KEY, falling back to pool');
+    console.warn('[CaseGenerator] No host API key supplied, falling back to pool');
     return pickFromPool();
   }
 

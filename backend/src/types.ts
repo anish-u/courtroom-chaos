@@ -76,6 +76,12 @@ export interface RoomState {
   caseIllustration: string | null;
   caseIllustrationStatus: CaseIllustrationStatus;
   caseIllustrationError: string | null;
+  /**
+   * Server-only. Provided by the host at room creation. Used to authenticate
+   * every Gemini call made on behalf of this room. MUST NOT appear in any
+   * `room:state` broadcast — `sanitizeRoom` enforces this with an allow-list.
+   */
+  hostApiKey: string;
 }
 
 export const MIN_PLAYERS = 3;

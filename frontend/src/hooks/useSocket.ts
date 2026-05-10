@@ -88,12 +88,17 @@ export function useSocket() {
     };
   }, [setSocketId, setRoomState, updateJudgeMood, setJudgeSpeaking]);
 
-  const createRoom = useCallback((playerName: string): Promise<{ room?: RoomState; error?: string }> => {
-    return new Promise((resolve) => {
-      sessionStorage.setItem('cc_name', playerName);
-      socket.current.emit('room:create', { playerName }, resolve);
-    });
-  }, []);
+  const createRoom = useCallback(
+    (playerName: string, apiKey: string): Promise<{ room?: RoomState; error?: string }> => {
+      return new Promise((resolve) => {
+        sessionStorage.setItem('cc_name', playerName);
+        // The API key is intentionally NEVER persisted (no localStorage / sessionStorage).
+        // It is sent once with this emit and lives only in server memory thereafter.
+        socket.current.emit('room:create', { playerName, apiKey }, resolve);
+      });
+    },
+    []
+  );
 
   const joinRoom = useCallback((code: string, playerName: string): Promise<{ room?: RoomState; error?: string }> => {
     return new Promise((resolve) => {

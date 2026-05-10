@@ -16,6 +16,10 @@ export default function LobbyView() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Host's Gemini API key. Lives only in component state until createRoom is
+  // called, then is cleared. Intentionally never written to storage.
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     const code = searchParams.get("join");
@@ -39,13 +43,23 @@ export default function LobbyView() {
       setError("Enter your name");
       return;
     }
+    if (!apiKey.trim()) {
+      setError("Paste your Gemini API key to host a game");
+      return;
+    }
     setIsLoading(true);
     setError("");
-    const result = await createRoom(playerName.trim());
+    const submittedKey = apiKey.trim();
+    const result = await createRoom(playerName.trim(), submittedKey);
     setIsLoading(false);
     if (result.error) {
       setError(result.error);
+      return;
     }
+    // Successfully sent — drop the key from React state so it doesn't sit in
+    // memory for the entire lobby duration.
+    setApiKey("");
+    setShowKey(false);
   };
 
   const handleJoin = async () => {
@@ -145,12 +159,57 @@ export default function LobbyView() {
                 />
               </div>
 
+              <div>
+                <label
+                  htmlFor="cc-api-key"
+                  className="block text-sm text-court-muted font-bold mb-2"
+                >
+                  Your Gemini API Key{" "}
+                  <span className="text-court-muted/70 font-semibold">(host only)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="cc-api-key"
+                    type={showKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="AIza..."
+                    autoComplete="off"
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    maxLength={500}
+                    className="flex-1 bg-white border-4 border-court-border rounded-xl px-4 py-3 text-court-text placeholder:text-court-muted/50 focus:outline-none focus:ring-2 focus:ring-court-accent transition font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey((v) => !v)}
+                    aria-label={showKey ? "Hide API key" : "Show API key"}
+                    className="bg-court-panel hover:bg-yellow-200 text-court-text font-black px-3 py-3 rounded-xl border-4 border-court-border shadow-[3px_3px_0_0_#111827] transition text-xs"
+                  >
+                    {showKey ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <p className="text-xs text-court-muted/80 mt-2 font-semibold">
+                  Get a free key at{" "}
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-court-text"
+                  >
+                    aistudio.google.com
+                  </a>
+                  . Used only for this room and never stored.
+                </p>
+              </div>
+
               <button
                 onClick={handleCreate}
-                disabled={isLoading}
-                className="w-full bg-court-gold hover:bg-yellow-300 text-court-text font-black py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                disabled={isLoading || !playerName.trim() || !apiKey.trim()}
+                className="w-full bg-court-gold hover:bg-yellow-300 text-court-text font-black py-3 rounded-xl border-4 border-court-border shadow-[4px_4px_0_0_#111827] transition disabled:opacity-50 disabled:cursor-not-allowed active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
-                {isLoading ? "Creating..." : "Create New Game"}
+                {isLoading ? "Validating key..." : "Create New Game"}
               </button>
 
               <div className="flex items-center gap-4">

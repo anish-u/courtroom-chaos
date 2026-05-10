@@ -14,8 +14,8 @@ Built with the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live-api)
 
 ## How It Works
 
-1. One player creates a room and shares the invite link
-2. 3-6 players join the lobby
+1. One player creates a room, **provides their own Gemini API key**, and shares the invite link
+2. 3-6 players join the lobby (only the host needs an API key)
 3. Host starts the game -- roles (Prosecutor, Defense, Defendant, Witnesses, Jury Foreman) are assigned randomly using real player names
 4. Peter Griffin (AI) introduces the absurd case, calls on players to speak, interrupts constantly, and runs the entire trial
 5. Players speak into their mic when called upon -- all players hear each other and the judge in real time
@@ -35,7 +35,7 @@ Built with the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live-api)
 ### Prerequisites
 
 - Node.js 20+
-- A [Google AI Studio](https://aistudio.google.com/apikey) API key with Live API access
+- A [Google AI Studio](https://aistudio.google.com/apikey) API key with Live API access — pasted into the lobby by the host when they create a game (no server-side key required)
 
 ### Install & Run
 
@@ -55,9 +55,10 @@ cd frontend && npm run dev    # http://localhost:5173
 
 ### Environment Variables
 
+The Gemini API key is **not** a server-side environment variable. Each host pastes their own key into the lobby UI when creating a game; the server uses that key for the lifetime of that room only and never persists it. The remaining variables let the operator pin model versions:
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GEMINI_API_KEY` | -- | Google AI Studio API key (required) |
 | `GEMINI_MODEL` | `gemini-3.1-flash-live-preview` | Gemini Live model name |
 | `GEMINI_VOICE` | `Fenrir` | Voice preset (Excitable) |
 | `GEMINI_CASE_MODEL` | `gemini-2.0-flash` | Text model for AI-generated case blurbs |
@@ -66,10 +67,12 @@ cd frontend && npm run dev    # http://localhost:5173
 | `PORT` | `3001` | Backend port |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Frontend origin for CORS |
 
+> **Production note:** Run the server behind HTTPS/TLS so the host's API key travels over WSS (encrypted). Plain `ws://` exposes the key in transit.
+
 ### Docker
 
 ```bash
-cp env.example .env             # then set GEMINI_API_KEY
+cp env.example .env
 docker compose up --build      # http://localhost:3001
 ```
 
