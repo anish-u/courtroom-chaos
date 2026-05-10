@@ -21,12 +21,6 @@ function shuffle<T>(arr: T[]): T[] {
 export class RoomManager {
   private rooms: Map<string, RoomState> = new Map();
   private playerToRoom: Map<string, string> = new Map();
-  private cleanupTimers: Map<string, NodeJS.Timeout> = new Map();
-  private roomTtlMs: number;
-
-  constructor(roomTtlMs = 600_000) {
-    this.roomTtlMs = roomTtlMs;
-  }
 
   createRoom(hostSocketId: string, hostName: string, hostApiKey: string): RoomState {
     let code: string;
@@ -120,7 +114,7 @@ export class RoomManager {
     return room;
   }
 
-  leaveRoom(socketId: string): { room: RoomState; wasHost: boolean } | null {
+  leaveRoom(socketId: string): { room: RoomState; wasHost: boolean; abandoned: boolean } | null {
     const code = this.playerToRoom.get(socketId);
     if (!code) return null;
 
@@ -139,16 +133,15 @@ export class RoomManager {
 
     this.playerToRoom.delete(socketId);
 
-    if (room.players.filter(p => p.connected).length === 0) {
-      this.scheduleCleanup(code);
-    }
+    // No one left connected — index.ts will tear down the room immediately (Gemini off, room deleted).
+    const abandoned = room.players.filter(p => p.connected).length === 0;
 
     if (wasHost && room.players.length > 0) {
       const newHost = room.players.find(p => p.connected);
       if (newHost) newHost.isHost = true;
     }
 
-    return { room, wasHost };
+    return { room, wasHost, abandoned };
   }
 
   getRoom(code: string): RoomState | undefined {
@@ -175,19 +168,6 @@ export class RoomManager {
       room.players.forEach(p => this.playerToRoom.delete(p.socketId));
       this.rooms.delete(code);
     }
-    const timer = this.cleanupTimers.get(code);
-    if (timer) {
-      clearTimeout(timer);
-      this.cleanupTimers.delete(code);
-    }
-  }
-
-  private scheduleCleanup(code: string): void {
-    if (this.cleanupTimers.has(code)) return;
-    const timer = setTimeout(() => {
-      this.deleteRoom(code);
-    }, this.roomTtlMs);
-    this.cleanupTimers.set(code, timer);
   }
 
   removePlayersNotIn(code: string, keepSocketIds: string[]): void {
@@ -213,12 +193,6 @@ export class RoomManager {
 
     if (room.activeSpeaker === oldSocketId) {
       room.activeSpeaker = socketId;
-    }
-
-    const timer = this.cleanupTimers.get(code);
-    if (timer) {
-      clearTimeout(timer);
-      this.cleanupTimers.delete(code);
     }
 
     return room;

@@ -20,6 +20,7 @@ Built with the [Gemini Live API](https://ai.google.dev/gemini-api/docs/live-api)
 4. Peter Griffin (AI) introduces the absurd case, calls on players to speak, interrupts constantly, and runs the entire trial
 5. Players speak into their mic when called upon -- all players hear each other and the judge in real time
 6. Peter delivers a verdict and scores each player on creativity, persuasiveness, and absurdity
+7. The **host** can close the room from the lobby or end the game for everyone during the trial or on the verdict screen. If every player disconnects, the server removes the room and shuts down the judge session right away (no long abandoned-room wait).
 
 ## Tech Stack
 

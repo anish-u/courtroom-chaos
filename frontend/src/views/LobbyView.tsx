@@ -8,7 +8,7 @@ import { useGameStore, Phase } from "../store/gameStore";
 export default function LobbyView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { createRoom, joinRoom, kickPlayer, startGame } = useSocket();
+  const { createRoom, joinRoom, kickPlayer, startGame, endRoom } = useSocket();
   const { roomState, playerName, setPlayerName, socketId } = useGameStore();
   const { audioRef, muted, toggleMute } = useLobbyBgm();
 
@@ -93,6 +93,27 @@ export default function LobbyView() {
     if (result.error) {
       setError(result.error);
     }
+  };
+
+  const handleCloseRoom = async () => {
+    if (!roomState || !isHost) return;
+    if (
+      !window.confirm(
+        "Close this room for everyone? All players will be disconnected."
+      )
+    ) {
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    const result = await endRoom(roomState.code);
+    setIsLoading(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    useGameStore.getState().reset();
+    navigate("/lobby");
   };
 
   const copyInviteLink = async () => {
@@ -307,7 +328,7 @@ export default function LobbyView() {
 
       {/* Start Game */}
       {isHost && (
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <button
             type="button"
             onClick={handleStart}
@@ -321,6 +342,16 @@ export default function LobbyView() {
               Need at least 3 players to start
             </p>
           )}
+          <div>
+            <button
+              type="button"
+              onClick={handleCloseRoom}
+              disabled={isLoading}
+              className="text-xs font-black px-4 py-2 rounded-xl border-4 border-red-800 bg-red-100 text-red-900 hover:bg-red-200 shadow-[2px_2px_0_0_#111827] transition disabled:opacity-50"
+            >
+              Close room for everyone
+            </button>
+          </div>
         </div>
       )}
 

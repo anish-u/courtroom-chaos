@@ -17,7 +17,7 @@ const ROLE_LABELS: Record<Role, string> = {
 
 export default function VerdictView() {
   const navigate = useNavigate();
-  const { rematch, readyForRematch, foremanOverride } = useSocket();
+  const { rematch, readyForRematch, foremanOverride, endRoom } = useSocket();
   const { roomState, socketId } = useGameStore();
   const [overrideTarget, setOverrideTarget] = useState<string | null>(null);
   const [overrideModifier, setOverrideModifier] = useState(0);
@@ -66,6 +66,24 @@ export default function VerdictView() {
   };
 
   const handleLeave = () => {
+    useGameStore.getState().reset();
+    navigate('/lobby');
+  };
+
+  const handleEndGameForEveryone = async () => {
+    if (!roomState || !isHost) return;
+    if (
+      !window.confirm(
+        'End the game for everyone? The room will be closed and all players disconnected.'
+      )
+    ) {
+      return;
+    }
+    const res = await endRoom(roomState.code);
+    if (res.error) {
+      window.alert(res.error);
+      return;
+    }
     useGameStore.getState().reset();
     navigate('/lobby');
   };
@@ -229,6 +247,15 @@ export default function VerdictView() {
             </button>
           )}
 
+          {isHost && (
+            <button
+              type="button"
+              onClick={handleEndGameForEveryone}
+              className="text-xs font-black px-4 py-3 rounded-xl border-4 border-red-800 bg-red-100 text-red-900 hover:bg-red-200 shadow-[4px_4px_0_0_#111827] transition"
+            >
+              End game for everyone
+            </button>
+          )}
           <button
             type="button"
             onClick={handleLeave}

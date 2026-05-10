@@ -48,7 +48,7 @@ function initials(name: string): string {
 
 export default function GameView() {
   const navigate = useNavigate();
-  const { sendAudioChunk } = useSocket();
+  const { sendAudioChunk, endRoom } = useSocket();
   const { roomState, socketId, isJudgeSpeaking } = useGameStore();
   const playerAudioCtxRef = useRef<AudioContext | null>(null);
   const playerNextStartRef = useRef(0);
@@ -156,6 +156,25 @@ export default function GameView() {
   const mood = MOOD_DISPLAY[roomState.judgeMood] || MOOD_DISPLAY[JudgeMood.NEUTRAL];
 
   const ill = roomState.caseIllustrationStatus;
+  const isHost = myPlayer.isHost;
+
+  const handleEndGameForEveryone = async () => {
+    if (!roomState || !isHost) return;
+    if (
+      !window.confirm(
+        "End the trial for everyone? The room will be closed and all players disconnected."
+      )
+    ) {
+      return;
+    }
+    const res = await endRoom(roomState.code);
+    if (res.error) {
+      window.alert(res.error);
+      return;
+    }
+    useGameStore.getState().reset();
+    navigate("/lobby");
+  };
 
   return (
     <div className="flex h-dvh max-h-dvh flex-col overflow-hidden">
@@ -168,12 +187,23 @@ export default function GameView() {
             </h1>
             <p className="text-court-muted text-sm font-bold">Room: {roomState.code}</p>
           </div>
-          <div className="flex items-center gap-3 fg-card px-4 py-2">
-            <span className="text-3xl">{mood.emoji}</span>
-            <div>
-              <div className="text-court-muted text-xs font-bold uppercase">Peter&apos;s mood</div>
-              <div className="text-court-text font-extrabold">{mood.label}</div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex items-center gap-3 fg-card px-4 py-2">
+              <span className="text-3xl">{mood.emoji}</span>
+              <div>
+                <div className="text-court-muted text-xs font-bold uppercase">Peter&apos;s mood</div>
+                <div className="text-court-text font-extrabold">{mood.label}</div>
+              </div>
             </div>
+            {isHost && roomState.phase === Phase.TRIAL && (
+              <button
+                type="button"
+                onClick={handleEndGameForEveryone}
+                className="text-xs font-black px-3 py-2 rounded-xl border-4 border-red-800 bg-red-100 text-red-900 hover:bg-red-200 shadow-[2px_2px_0_0_#111827] transition"
+              >
+                End game for everyone
+              </button>
+            )}
           </div>
         </div>
       </header>

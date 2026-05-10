@@ -57,9 +57,7 @@ const io = new Server(httpServer, {
   cors: { origin: '*' },
 });
 
-const roomManager = new RoomManager(
-  parseInt(process.env.ROOM_TTL_MS || '600000', 10)
-);
+const roomManager = new RoomManager();
 
 const geminiProxies: Map<string, GeminiLiveProxy> = new Map();
 const transcripts: Map<string, TranscriptBuilder> = new Map();
@@ -194,7 +192,25 @@ const ForemanOverrideSchema = z.object({
   modifier: z.number().min(-15).max(15),
 });
 const RematchSchema = z.object({ code: z.string().length(6) });
+const RoomEndSchema = z.object({ code: z.string().length(6) });
 const ReconnectSchema = z.object({ code: z.string().length(6), playerName: z.string().min(1).max(30) });
+
+/** Full teardown: Gemini off, transcripts, notify clients, drop sockets, delete room. */
+function destroyRoom(code: string): void {
+  const c = code.toUpperCase();
+  if (!roomManager.getRoom(c)) return;
+
+  io.to(c).emit('room:closed', { reason: 'ended' });
+
+  const proxy = geminiProxies.get(c);
+  if (proxy) {
+    proxy.disconnect();
+    geminiProxies.delete(c);
+  }
+  transcripts.delete(c);
+  roomManager.deleteRoom(c);
+  io.in(c).disconnectSockets(true);
+}
 
 io.on('connection', (socket) => {
   console.log('Connected:', socket.id);
@@ -260,6 +276,21 @@ io.on('connection', (socket) => {
     } catch (err: any) {
       ack?.({ error: err.message });
     }
+  });
+
+  socket.on('room:end', (data, ack) => {
+    const parsed = RoomEndSchema.safeParse(data);
+    if (!parsed.success) return ack?.({ error: parsed.error.message });
+
+    const code = parsed.data.code.toUpperCase();
+    const room = roomManager.getRoom(code);
+    if (!room) return ack?.({ error: 'Room not found' });
+
+    const host = room.players.find(p => p.socketId === socket.id);
+    if (!host?.isHost) return ack?.({ error: 'Only the host can end the room' });
+
+    ack?.({ ok: true });
+    destroyRoom(code);
   });
 
   socket.on('game:start', async (data, ack) => {
@@ -532,7 +563,11 @@ io.on('connection', (socket) => {
     console.log('Disconnected:', socket.id);
     const result = roomManager.leaveRoom(socket.id);
     if (result) {
-      broadcastRoomState(result.room);
+      if (result.abandoned) {
+        destroyRoom(result.room.code);
+      } else {
+        broadcastRoomState(result.room);
+      }
     }
   });
 });

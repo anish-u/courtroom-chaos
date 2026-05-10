@@ -70,6 +70,12 @@ export function useSocket() {
       useGameStore.getState().reset();
     });
 
+    s.on('room:closed', () => {
+      sessionStorage.removeItem('cc_room');
+      sessionStorage.removeItem('cc_name');
+      useGameStore.getState().reset();
+    });
+
     s.on('judge:unavailable', ({ message }: { message: string }) => {
       console.warn('[Judge unavailable]', message);
     });
@@ -84,6 +90,7 @@ export function useSocket() {
       s.off('judge:mood');
       s.off('judge:audio');
       s.off('room:kicked');
+      s.off('room:closed');
       s.off('judge:unavailable');
     };
   }, [setSocketId, setRoomState, updateJudgeMood, setJudgeSpeaking]);
@@ -144,6 +151,12 @@ export function useSocket() {
     });
   }, []);
 
+  const endRoom = useCallback((code: string): Promise<{ ok?: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      socket.current.emit('room:end', { code: code.toUpperCase() }, resolve);
+    });
+  }, []);
+
   return {
     socket: socket.current,
     createRoom,
@@ -154,5 +167,6 @@ export function useSocket() {
     foremanOverride,
     readyForRematch,
     rematch,
+    endRoom,
   };
 }
